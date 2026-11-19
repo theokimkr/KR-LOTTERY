@@ -10,10 +10,13 @@
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <style>
     html, body {
+      width: 100%;
+      height: 100%;
       font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
       background-color: transparent !important;
       margin: 0;
       padding: 0;
+      overflow: hidden;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -79,10 +82,10 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-2 bg-transparent overflow-hidden">
+<body class="w-full h-full flex items-center justify-center p-0 m-0 bg-transparent overflow-hidden">
 
   <!-- 외곽 리사이즈 래퍼: 투명 테두리 드래그 영역을 감싸며 실제 시각적 크기를 유지 -->
-  <div id="widget-wrapper" class="relative inline-block border-0 shadow-none bg-transparent">
+  <div id="widget-wrapper" class="relative inline-flex items-center justify-center border-0 shadow-none bg-transparent">
     <!-- 8방향 투명 드래그 핸들 (상/하/좌/우 및 4개 모서리) -->
     <div class="resize-handle resize-n" data-dir="n" aria-hidden="true"></div>
     <div class="resize-handle resize-s" data-dir="s" aria-hidden="true"></div>
@@ -94,7 +97,7 @@
     <div class="resize-handle resize-se" data-dir="se" aria-hidden="true"></div>
 
     <!-- 위젯 메인 컨테이너: 기준 너비(360px)를 유지한 채 비율 스케일링되어 인터페이스 깨짐 원천 차단 -->
-    <main id="widget-content" style="width: 360px; transform-origin: top left;" class="bg-white rounded-3xl p-6 border-0 shadow-none">
+    <main id="widget-content" style="width: 360px; transform-origin: top left;" class="relative bg-white rounded-3xl p-6 border-0 shadow-none">
       
       <!-- 상단 헤더 영역 -->
       <header class="flex items-center justify-between mb-5">
@@ -190,7 +193,7 @@
       </section>
 
       <!-- 하단 안내 및 전체 복사 기능 -->
-      <footer class="mt-5 pt-1 flex items-center justify-between whitespace-nowrap">
+      <footer class="mt-5 flex items-center justify-between whitespace-nowrap">
         <p class="text-xs text-slate-400 font-medium">
           1~45 중복 없는 6개 번호 · 오름차순
         </p>
@@ -204,18 +207,18 @@
         </button>
       </footer>
 
-      <!-- 알림 메시지 토스트 (alert 대신 사용 + 고정 URL 복사 액션 제공) -->
+      <!-- 알림 메시지 토스트 (레이아웃 높이에 영향을 주지 않도록 하단 중앙 오버레이 배치) -->
       <div
         id="toast-container"
         role="status"
         aria-live="polite"
-        class="mt-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-emerald-600 opacity-0 pointer-events-none transition-opacity duration-200 min-h-[20px] whitespace-nowrap"
+        class="absolute bottom-1.5 left-0 right-0 flex items-center justify-center gap-2 text-[11px] font-semibold text-emerald-600 opacity-0 pointer-events-none transition-opacity duration-200 whitespace-nowrap"
       >
         <span id="toast-msg">5게임 번호가 클립보드에 복사되었습니다.</span>
         <button
           id="copy-lock-url-btn"
           type="button"
-          class="hidden bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[11px] font-bold transition-colors cursor-pointer border-0"
+          class="hidden pointer-events-auto bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors cursor-pointer border-0"
         >
           고정 링크 복사
         </button>
