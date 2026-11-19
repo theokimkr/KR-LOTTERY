@@ -3,749 +3,533 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>로또 6/45 자동생성 위젯</title>
-  <!-- Tailwind CSS 로드 -->
+  <title>로또 6/45 자동생성 위젯 (노션 임베드용)</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Pretendard / Inter 폰트 로드 -->
+  <!-- Pretendard Web Font -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <style>
+    /* 노션 임베드 시 외부 여백 및 배경 완전 투명화 */
     html, body {
-      width: 100%;
-      height: 100%;
-      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-      background-color: transparent !important;
       margin: 0;
       padding: 0;
-      overflow: hidden;
-      -webkit-tap-highlight-color: transparent;
+      background: transparent !important;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      width: 100%;
     }
 
-    /* 로또 공 등장 팝 애니메이션 */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 로또 공 등장 애니메이션 */
     @keyframes ballPop {
       0% {
+        transform: scale(0.5);
         opacity: 0;
-        transform: scale(0.45) translateY(6px);
       }
-      70% {
+      75% {
+        transform: scale(1.06);
         opacity: 1;
-        transform: scale(1.08) translateY(-1px);
       }
       100% {
+        transform: scale(1);
         opacity: 1;
-        transform: scale(1) translateY(0);
       }
     }
 
     .ball-animate {
-      animation: ballPop 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: ballPop 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
     }
 
-    /* 원형 버튼 클릭 시 아이콘 회전 애니메이션 */
-    @keyframes spinOnce {
-      0% {
-        transform: rotate(0deg);
-      }
-      100% {
-        transform: rotate(360deg);
-      }
-    }
-
-    .spin-icon {
-      animation: spinOnce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    /* 투명 리사이즈 핸들 공통 스타일 (테두리/배경 완전 투명) */
-    .resize-handle {
-      position: absolute;
-      background: transparent;
-      z-index: 30;
-      touch-action: none;
-    }
-    .resize-n  { top: -6px; left: 10px; right: 10px; height: 12px; cursor: ns-resize; }
-    .resize-s  { bottom: -6px; left: 10px; right: 10px; height: 12px; cursor: ns-resize; }
-    .resize-e  { right: -6px; top: 10px; bottom: 10px; width: 12px; cursor: ew-resize; }
-    .resize-w  { left: -6px; top: 10px; bottom: 10px; width: 12px; cursor: ew-resize; }
-    .resize-nw { top: -6px; left: -6px; width: 16px; height: 16px; cursor: nwse-resize; }
-    .resize-ne { top: -6px; right: -6px; width: 16px; height: 16px; cursor: nesw-resize; }
-    .resize-sw { bottom: -6px; left: -6px; width: 16px; height: 16px; cursor: nesw-resize; }
-    .resize-se { bottom: -6px; right: -6px; width: 16px; height: 16px; cursor: nwse-resize; }
-
-    /* 크기 고정 상태일 때 리사이즈 핸들 비활성화 및 커서 복원 */
-    #widget-wrapper.is-locked .resize-handle {
-      pointer-events: none;
-      cursor: default !important;
-    }
-
-    body.is-resizing {
+    /* 레퍼런스 이미지 기반 플랫 & 깔끔한 로또 공 스타일 */
+    .lotto-ball {
+      width: 26px;
+      height: 26px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+      letter-spacing: -0.02em;
       user-select: none;
-      -webkit-user-select: none;
+      flex-shrink: 0;
+      text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.12);
+    }
+
+    /* 번호 대역별 컬러 팔레트 */
+    .ball-yellow { background-color: #FBC400; } /* 1 ~ 10 */
+    .ball-blue   { background-color: #69C8F2; } /* 11 ~ 20 */
+    .ball-red    { background-color: #FF7272; } /* 21 ~ 30 */
+    .ball-gray   { background-color: #AAAAAA; } /* 31 ~ 40 */
+    .ball-green  { background-color: #B0D840; } /* 41 ~ 45 */
+
+    /* 게임 행 카드 (#F6F8FB) */
+    .game-row {
+      background-color: #F6F8FB;
+      border-radius: 12px;
+      padding: 7px 10px;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+    .game-row:hover {
+      background-color: #EDF2F7;
+    }
+    .game-row:active {
+      transform: scale(0.992);
+    }
+
+    /* 우측 하단 ㄴ자 모서리 리사이즈 핸들 (단독 유지) */
+    .handle-corner {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 2px;
+      z-index: 30;
+      color: #475569;
+      opacity: 0.85;
+      touch-action: none;
+      transition: opacity 0.15s ease, color 0.15s ease;
+    }
+    .handle-corner:hover {
+      opacity: 1;
+      color: #0F172A;
     }
   </style>
 </head>
-<body class="w-full h-full flex items-start justify-center pt-1 p-0 m-0 bg-transparent overflow-hidden">
-
-  <!-- 외곽 리사이즈 래퍼: 투명 테두리 드래그 영역을 감싸며 실제 시각적 크기를 유지 -->
-  <div id="widget-wrapper" class="relative inline-flex items-center justify-center border-0 shadow-none bg-transparent">
-    <!-- 8방향 투명 드래그 핸들 (상/하/좌/우 및 4개 모서리) -->
-    <div class="resize-handle resize-n" data-dir="n" aria-hidden="true"></div>
-    <div class="resize-handle resize-s" data-dir="s" aria-hidden="true"></div>
-    <div class="resize-handle resize-e" data-dir="e" aria-hidden="true"></div>
-    <div class="resize-handle resize-w" data-dir="w" aria-hidden="true"></div>
-    <div class="resize-handle resize-nw" data-dir="nw" aria-hidden="true"></div>
-    <div class="resize-handle resize-ne" data-dir="ne" aria-hidden="true"></div>
-    <div class="resize-handle resize-sw" data-dir="sw" aria-hidden="true"></div>
-    <div class="resize-handle resize-se" data-dir="se" aria-hidden="true"></div>
-
-    <!-- 위젯 메인 컨테이너: 기준 너비(360px)를 유지한 채 비율 스케일링되어 인터페이스 깨짐 원천 차단 -->
-    <main id="widget-content" style="width: 360px; transform-origin: top left;" class="relative bg-white rounded-3xl p-6 border-0 shadow-none">
+<body>
+  <!-- 노션 좌상단 밀착 래퍼 (기본 컴팩트 폭 300px) -->
+  <div id="widgetWrapper" class="relative select-none" style="width: 300px; max-width: 100%; margin: 0; padding: 0;">
+    
+    <!-- 실제 위젯 본문 영역 (비율 스케일링 대상) -->
+    <div id="widgetContent" class="relative bg-transparent" style="width: 300px; transform-origin: top left;">
       
-      <!-- 상단 헤더 영역 -->
-      <header class="flex items-center justify-between mb-5">
-        <div class="whitespace-nowrap">
-          <div class="flex items-center gap-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Lotto 6/45</span>
+      <!-- 1. 상단 헤더 영역 -->
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <!-- 좌측: 에메랄드 점 + LOTTO 6/45 + 타이틀 -->
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="inline-block w-1.5 h-1.5 rounded-full shrink-0" style="background-color: #14B88A;"></span>
+            <span class="text-[10px] font-bold tracking-wider uppercase" style="color: #94A3B8;">LOTTO 6/45</span>
           </div>
-          <h1 class="text-xl font-bold text-slate-900 tracking-tight mt-0.5">
+          <h1 class="text-[15.5px] font-extrabold tracking-tight leading-tight truncate" style="color: #0F172A;">
             로또 번호 자동생성
           </h1>
         </div>
 
-        <!-- 우측: 금액 뱃지 + 크기 고정 토글 버튼 + 원형 랜덤 재생성 버튼 -->
+        <!-- 우측: 자동 5게임 / 5,000원 + 원형 액션 버튼 2개 -->
         <div class="flex items-center gap-2 shrink-0">
-          <div class="text-right mr-0.5 whitespace-nowrap">
-            <span class="block text-[11px] font-medium text-slate-400">자동 5게임</span>
-            <span class="block text-sm font-bold text-slate-700">5,000원</span>
+          <div class="text-right leading-tight mr-0.5">
+            <div class="text-[10px] font-medium" style="color: #94A3B8;">자동 5게임</div>
+            <div class="text-[13.5px] font-extrabold tabular-nums mt-0.5" style="color: #0F172A;">5,000원</div>
           </div>
 
-          <!-- 크기 고정 토글 버튼 -->
-          <button
-            id="lock-size-btn"
-            type="button"
-            aria-label="위젯 크기 고정 토글"
-            aria-pressed="false"
-            title="크기 고정"
-            class="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200/80 active:scale-90 text-slate-500 flex items-center justify-center transition-all duration-150 border-0 shadow-none focus:outline-none cursor-pointer shrink-0"
-          >
-            <!-- 잠금 해제 아이콘 (기본) -->
-            <svg
-              id="icon-unlocked"
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-4 h-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+          <!-- 사이즈 고정 버튼 (에메랄드 그린 원형 36x36) -->
+          <button id="btnLock" type="button" title="사이즈 고정 / 해제"
+            class="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm cursor-pointer transition-transform active:scale-95 shrink-0"
+            style="background-color: #14B88A;">
+            <!-- 잠금 상태 아이콘 (닫힌 자물쇠) -->
+            <svg id="iconLocked" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="11" width="16" height="10" rx="2.5"></rect>
+              <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
             </svg>
-            <!-- 잠금 아이콘 (크기 고정 활성화 시 표시) -->
-            <svg
-              id="icon-locked"
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-4 h-4 hidden"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            <!-- 잠금 해제 상태 아이콘 (열린 자물쇠) -->
+            <svg id="iconUnlocked" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="11" width="16" height="10" rx="2.5"></rect>
+              <path d="M8 11V7a4 4 0 0 1 7.8-1.2"></path>
             </svg>
           </button>
 
-          <!-- 원형 랜덤 재생성 버튼 -->
-          <button
-            id="refresh-btn"
-            type="button"
-            aria-label="새로운 번호 5게임 생성"
-            title="새 번호 생성"
-            class="w-11 h-11 rounded-full bg-slate-900 hover:bg-slate-800 active:scale-90 text-white flex items-center justify-center transition-all duration-150 border-0 shadow-none focus:outline-none cursor-pointer shrink-0"
-          >
-            <svg
-              id="refresh-icon"
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-              <path d="M16 16h5v5" />
+          <!-- 번호 랜덤 돌리기 버튼 (다크 네이비 원형 36x36) -->
+          <button id="btnShuffle" type="button" title="새 번호 5게임 추첨"
+            class="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm cursor-pointer transition-transform active:scale-95 shrink-0"
+            style="background-color: #131B2E;">
+            <svg id="shuffleIcon" class="w-4 h-4 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+              <path d="M16 16h5v5"></path>
             </svg>
           </button>
         </div>
-      </header>
-
-      <!-- 5게임(A~E) 번호 리스트 컨테이너 -->
-      <section id="games-container" aria-label="생성된 로또 번호 목록" class="space-y-2.5">
-        <!-- JavaScript로 5게임 행이 동적으로 렌더링됩니다 -->
-      </section>
-
-      <!-- 하단 안내 및 전체 복사 기능 -->
-      <footer class="mt-5 flex items-center justify-between whitespace-nowrap">
-        <p class="text-xs text-slate-400 font-medium">
-          1~45 중복 없는 6개 번호 · 오름차순
-        </p>
-
-        <button
-          id="copy-btn"
-          type="button"
-          class="text-xs font-semibold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 active:scale-95 px-3 py-1.5 rounded-full transition-all border-0 shadow-none cursor-pointer"
-        >
-          번호 복사
-        </button>
-      </footer>
-
-      <!-- 알림 메시지 토스트 (레이아웃 높이에 영향을 주지 않도록 하단 중앙 오버레이 배치) -->
-      <div
-        id="toast-container"
-        role="status"
-        aria-live="polite"
-        class="absolute bottom-1.5 left-0 right-0 flex items-center justify-center gap-2 text-[11px] font-semibold text-emerald-600 opacity-0 pointer-events-none transition-opacity duration-200 whitespace-nowrap"
-      >
-        <span id="toast-msg">5게임 번호가 클립보드에 복사되었습니다.</span>
-        <button
-          id="copy-lock-url-btn"
-          type="button"
-          class="hidden pointer-events-auto bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors cursor-pointer border-0"
-        >
-          고정 링크 복사
-        </button>
       </div>
 
-    </main>
+      <!-- 2. 5게임 (A ~ E) 카드 리스트 -->
+      <div id="gamesContainer" class="flex flex-col" style="gap: 6px;"></div>
+
+      <!-- 3. 하단 푸터 안내 및 번호 복사 알약 버튼 -->
+      <div class="flex items-center justify-between gap-2 mt-3">
+        <span class="text-[10px] font-medium tracking-tight truncate" style="color: #94A3B8;">
+          1~45 중복 없는 6개 번호 · 오름차순
+        </span>
+        <button id="btnCopyAll" type="button"
+          class="rounded-full text-[11px] font-semibold cursor-pointer transition-colors shrink-0 active:scale-95"
+          style="background-color: #F1F5F9; color: #334155; padding: 5px 12px;">
+          번호 복사
+        </button>
+      </div>
+    </div>
+
+    <!-- 우측 하단 모서리 리사이즈 핸들 (잠금 해제 시에만 노출) -->
+    <div id="handleCorner" class="handle-corner" title="드래그하여 위젯 크기 조절">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M12.5 3V12.5H3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <!-- 미니 토스트 피드백 -->
+    <div id="toast" class="pointer-events-none fixed left-1/2 bottom-3 -translate-x-1/2 z-50 opacity-0 transition-all duration-200 translate-y-1">
+      <div id="toastMsg" class="px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900/90 text-white shadow-md whitespace-nowrap">
+        복사되었습니다
+      </div>
+    </div>
   </div>
 
   <script>
-    // 토스트 타이머 참조 변수
-    let toastTimer = null;
+    (function () {
+      const LABELS = ['A', 'B', 'C', 'D', 'E'];
+      const STORAGE_KEY = 'notion_lotto_645_widget_v4';
+      const BASE_WIDTH = 300;
+      const MIN_SCALE = 0.75;
+      const MAX_SCALE = 1.8;
 
-    /**
-     * 하단 토스트 메시지 출력 헬퍼 (선택적으로 고정 링크 복사 버튼 노출)
-     */
-    function showToast(message, showUrlCopyAction = false, duration = 2200) {
-      const container = document.getElementById('toast-container');
-      const toast = document.getElementById('toast-msg');
-      const urlBtn = document.getElementById('copy-lock-url-btn');
-      if (!container || !toast) return;
+      let state = {
+        games: [],
+        isLocked: false,
+        scale: 1
+      };
 
-      toast.textContent = message;
+      // DOM 참조
+      const widgetWrapper = document.getElementById('widgetWrapper');
+      const widgetContent = document.getElementById('widgetContent');
+      const gamesContainer = document.getElementById('gamesContainer');
+      const btnLock = document.getElementById('btnLock');
+      const iconLocked = document.getElementById('iconLocked');
+      const iconUnlocked = document.getElementById('iconUnlocked');
+      const btnShuffle = document.getElementById('btnShuffle');
+      const shuffleIcon = document.getElementById('shuffleIcon');
+      const btnCopyAll = document.getElementById('btnCopyAll');
+      const handleCorner = document.getElementById('handleCorner');
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
 
-      if (urlBtn) {
-        if (showUrlCopyAction) {
-          urlBtn.classList.remove('hidden');
-        } else {
-          urlBtn.classList.add('hidden');
+      let toastTimer = null;
+      let copyBtnTimer = null;
+
+      // 토스트 안내 표시
+      function showToast(message) {
+        toastMsg.textContent = message;
+        toast.classList.remove('opacity-0', 'translate-y-1');
+        toast.classList.add('opacity-100', 'translate-y-0');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toast.classList.remove('opacity-100', 'translate-y-0');
+          toast.classList.add('opacity-0', 'translate-y-1');
+        }, 1500);
+      }
+
+      // 클립보드 복사 (노션 iFrame 샌드박스 호환 execCommand 우선 사용)
+      function copyToClipboard(text, onSuccess) {
+        let succeeded = false;
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.top = '-9999px';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          succeeded = document.execCommand('copy');
+          document.body.removeChild(textarea);
+        } catch (e) {
+          succeeded = false;
+        }
+
+        if (succeeded) {
+          if (onSuccess) onSuccess();
+          return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+            if (onSuccess) onSuccess();
+          }).catch(() => {
+            showToast('복사에 실패했습니다');
+          });
         }
       }
 
-      container.classList.remove('opacity-0', 'pointer-events-none');
-      container.classList.add('opacity-100');
-
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        container.classList.remove('opacity-100');
-        container.classList.add('opacity-0', 'pointer-events-none');
-      }, duration);
-    }
-
-    /**
-     * 한국 로또(6/45) 공식 번호대별 색상 반환 함수
-     * 1~10: 노랑, 11~20: 파랑, 21~30: 빨강, 31~40: 회색, 41~45: 초록
-     */
-    function getLottoBallStyle(number) {
-      if (number <= 10) {
-        return { bg: 'bg-[#FBC400]', text: 'text-white' };
-      } else if (number <= 20) {
-        return { bg: 'bg-[#69C8F2]', text: 'text-white' };
-      } else if (number <= 30) {
-        return { bg: 'bg-[#FF7272]', text: 'text-white' };
-      } else if (number <= 40) {
-        return { bg: 'bg-[#AAAAAA]', text: 'text-white' };
-      } else {
-        return { bg: 'bg-[#B0D840]', text: 'text-white' };
-      }
-    }
-
-    /**
-     * 1부터 45까지 중복 없이 6개의 숫자를 추출하여 오름차순 정렬 반환
-     */
-    function generateSingleGame() {
-      const pool = Array.from({ length: 45 }, (_, idx) => idx + 1);
-
-      // Fisher-Yates 셔플 알고리즘으로 완벽한 비복원 추출 보장
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
+      // 1~45 중복 없는 6개 오름차순 추첨
+      function drawSingleGame() {
+        const pool = Array.from({ length: 45 }, (_, i) => i + 1);
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        return pool.slice(0, 6).sort((a, b) => a - b);
       }
 
-      // 앞의 6개를 선택하고 오름차순(a - b) 정렬
-      const selected = pool.slice(0, 6).sort((a, b) => a - b);
-
-      // 안전 검증: 중복 제거 후 6자리인지 확인
-      const uniqueCheck = new Set(selected);
-      if (uniqueCheck.size !== 6) {
-        return generateSingleGame();
+      function drawFiveGames() {
+        return Array.from({ length: 5 }, () => drawSingleGame());
       }
 
-      return selected;
-    }
-
-    // 현재 생성된 5게임 데이터를 저장하는 상태 변수
-    let currentGames = [];
-    const GAME_LABELS = ['A', 'B', 'C', 'D', 'E'];
-
-    /**
-     * 5게임(A~E)을 생성하고 화면에 렌더링하는 함수
-     */
-    function renderLottoGames() {
-      try {
-        const container = document.getElementById('games-container');
-        if (!container) return;
-
-        currentGames = GAME_LABELS.map((label) => ({
-          label,
-          numbers: generateSingleGame()
-        }));
-
-        container.innerHTML = '';
-
-        currentGames.forEach((game, rowIndex) => {
-          // 각 게임 행
-          const rowEl = document.createElement('div');
-          rowEl.className = 'flex items-center justify-between bg-slate-50 rounded-2xl px-3.5 py-2.5 border-0 shadow-none';
-
-          // 좌측 게임 라벨 (A ~ E) 및 '자동' 표기
-          const labelWrapper = document.createElement('div');
-          labelWrapper.className = 'flex items-center gap-2 min-w-[50px] whitespace-nowrap';
-
-          const labelBadge = document.createElement('span');
-          labelBadge.className = 'text-sm font-extrabold text-slate-800 w-4 text-center';
-          labelBadge.textContent = game.label;
-
-          const autoTag = document.createElement('span');
-          autoTag.className = 'text-[11px] font-medium text-slate-400';
-          autoTag.textContent = '자동';
-
-          labelWrapper.appendChild(labelBadge);
-          labelWrapper.appendChild(autoTag);
-
-          // 우측 6개 로또 공 컨테이너
-          const ballsWrapper = document.createElement('div');
-          ballsWrapper.className = 'flex items-center gap-1.5 shrink-0';
-
-          game.numbers.forEach((num, ballIndex) => {
-            const style = getLottoBallStyle(num);
-            const ballEl = document.createElement('span');
-
-            // 순차적인 팝 애니메이션 딜레이 적용
-            const delayMs = (rowIndex * 45) + (ballIndex * 25);
-            ballEl.style.animationDelay = `${delayMs}ms`;
-            ballEl.style.opacity = '0';
-
-            ballEl.className = [
-              'w-8 h-8 rounded-full flex items-center justify-center',
-              'text-xs font-bold tracking-tight select-none',
-              'border-0 shadow-none ball-animate',
-              style.bg,
-              style.text
-            ].join(' ');
-
-            ballEl.textContent = num;
-            ballsWrapper.appendChild(ballEl);
-          });
-
-          rowEl.appendChild(labelWrapper);
-          rowEl.appendChild(ballsWrapper);
-          container.appendChild(rowEl);
-        });
-      } catch (error) {
-        console.error('로또 번호 생성 중 오류가 발생했습니다:', error);
+      // 번호 대역별 색상 클래스 반환
+      function getBallClass(num) {
+        if (num <= 10) return 'ball-yellow';
+        if (num <= 20) return 'ball-blue';
+        if (num <= 30) return 'ball-red';
+        if (num <= 40) return 'ball-gray';
+        return 'ball-green';
       }
-    }
 
-    /**
-     * 원형 랜덤 버튼 클릭 핸들러 (회전 애니메이션 + 번호 재생성)
-     */
-    function handleRefreshClick() {
-      const icon = document.getElementById('refresh-icon');
-      if (icon) {
-        icon.classList.remove('spin-icon');
-        void icon.offsetWidth;
-        icon.classList.add('spin-icon');
-      }
-      renderLottoGames();
-    }
-
-    /**
-     * 생성된 5게임 번호 텍스트 클립보드 복사 기능
-     */
-    function handleCopyNumbers() {
-      if (!currentGames.length) return;
-
-      const formattedText = currentGames
-        .map((game) => `${game.label} 자동: ${game.numbers.map((n) => String(n).padStart(2, '0')).join(', ')}`)
-        .join('\n');
-
-      const textarea = document.createElement('textarea');
-      textarea.value = formattedText;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-
-      try {
-        document.execCommand('copy');
-        showToast('5게임 번호가 클립보드에 복사되었습니다.', false, 2000);
-      } catch (err) {
-        console.error('클립보드 복사 실패:', err);
-      } finally {
-        document.body.removeChild(textarea);
-      }
-    }
-
-    /**
-     * 투명 테두리 드래그 앤 드롭 비례 크기 조절 및 노션 임베드 최적화 컨트롤러
-     */
-    function initProportionalResize() {
-      const wrapper = document.getElementById('widget-wrapper');
-      const content = document.getElementById('widget-content');
-      const lockBtn = document.getElementById('lock-size-btn');
-      const copyLockUrlBtn = document.getElementById('copy-lock-url-btn');
-      const iconUnlocked = document.getElementById('icon-unlocked');
-      const iconLocked = document.getElementById('icon-locked');
-
-      if (!wrapper || !content) return;
-
-      const BASE_WIDTH = 360;
-      const MIN_WIDTH = 180;
-      const MAX_WIDTH = 820;
-      const STORAGE_KEY_WIDTH = 'lotto_widget_saved_width_v2';
-      const STORAGE_KEY_LOCKED = 'lotto_widget_saved_locked_v2';
-
-      // 다중 저장소(URL 파라미터 -> window.name -> localStorage -> Cookie)에서 상태 복원
-      function loadSavedState() {
-        let savedWidth = null;
-        let savedLocked = false;
+      // 상태 저장 (localStorage + URL Hash 백업)
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+          // 노션 샌드박스 환경 예외 무시
+        }
 
         try {
-          // 1. URL 쿼리 파라미터 확인 (?w=260&lock=1)
-          const urlParams = new URLSearchParams(window.location.search);
-          const paramW = parseFloat(urlParams.get('w'));
-          const paramLock = urlParams.get('lock');
+          const payload = {
+            g: state.games,
+            l: state.isLocked ? 1 : 0,
+            s: state.scale
+          };
+          const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
+          window.history.replaceState(null, '', '#' + encoded);
+        } catch (e) {
+          // 해시 업데이트 제한 환경 무시
+        }
+      }
 
-          if (!Number.isNaN(paramW) && paramW >= MIN_WIDTH && paramW <= MAX_WIDTH) {
-            savedWidth = paramW;
-          }
-          if (paramLock === '1' || paramLock === 'true') {
-            savedLocked = true;
-          }
+      // 저장된 상태 복원
+      function loadState() {
+        let restored = false;
 
-          // 2. window.name 확인 (같은 탭/프레임 내 새로고침 시 샌드박스 우회 유지)
-          if (savedWidth === null && window.name && window.name.startsWith('LOTTO_STATE:')) {
-            const parsed = JSON.parse(window.name.replace('LOTTO_STATE:', ''));
-            if (parsed && typeof parsed.w === 'number') {
-              savedWidth = parsed.w;
-              savedLocked = Boolean(parsed.lock);
-            }
-          }
-
-          // 3. localStorage 확인
-          if (savedWidth === null) {
-            const localW = parseFloat(localStorage.getItem(STORAGE_KEY_WIDTH));
-            const localLock = localStorage.getItem(STORAGE_KEY_LOCKED);
-            if (!Number.isNaN(localW) && localW >= MIN_WIDTH && localW <= MAX_WIDTH) {
-              savedWidth = localW;
-            }
-            if (paramLock === null && localLock === 'true') {
-              savedLocked = true;
-            }
-          }
-
-          // 4. Cookie 확인
-          if (savedWidth === null && document.cookie) {
-            const matchW = document.cookie.match(/(?:^|;\s*)lotto_w=([0-9.]+)/);
-            const matchLock = document.cookie.match(/(?:^|;\s*)lotto_lock=(1|0)/);
-            if (matchW) {
-              const cookieW = parseFloat(matchW[1]);
-              if (!Number.isNaN(cookieW) && cookieW >= MIN_WIDTH && cookieW <= MAX_WIDTH) {
-                savedWidth = cookieW;
-              }
-            }
-            if (matchLock && matchLock[1] === '1') {
-              savedLocked = true;
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed.games) && parsed.games.length === 5) {
+              state = {
+                games: parsed.games,
+                isLocked: Boolean(parsed.isLocked),
+                scale: typeof parsed.scale === 'number' ? parsed.scale : 1
+              };
+              restored = true;
             }
           }
         } catch (e) {
-          console.warn('저장된 위젯 상태 불러오기 제한:', e);
+          // ignore
         }
 
-        return { width: savedWidth, locked: savedLocked };
-      }
-
-      // 현재 크기와 잠금 상태를 가능한 모든 저장소에 영구 기록
-      function persistState(widthVal, lockedVal) {
-        const roundedWidth = Math.round(widthVal * 10) / 10;
-
-        // 1. window.name 저장
-        try {
-          window.name = 'LOTTO_STATE:' + JSON.stringify({ w: roundedWidth, lock: lockedVal });
-        } catch (e) {}
-
-        // 2. localStorage 저장
-        try {
-          localStorage.setItem(STORAGE_KEY_WIDTH, String(roundedWidth));
-          localStorage.setItem(STORAGE_KEY_LOCKED, String(lockedVal));
-        } catch (e) {}
-
-        // 3. Cross-origin iframe 대응 쿠키 저장 (SameSite=None; Secure)
-        try {
-          document.cookie = `lotto_w=${roundedWidth}; max-age=31536000; path=/; SameSite=None; Secure`;
-          document.cookie = `lotto_lock=${lockedVal ? '1' : '0'}; max-age=31536000; path=/; SameSite=None; Secure`;
-        } catch (e) {}
-
-        // 4. URL 파라미터 업데이트
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.set('w', String(roundedWidth));
-          url.searchParams.set('lock', lockedVal ? '1' : '0');
-          window.history.replaceState(null, '', url.toString());
-        } catch (e) {}
-      }
-
-      // 현재 노션 iframe 뷰포트 크기에 딱 맞게 자동 계산하는 함수 (잘림 원천 방지)
-      function getViewportFitWidth(measuredBaseHeight) {
-        const padding = 12;
-        const availW = Math.max(MIN_WIDTH, window.innerWidth - padding);
-        const availH = Math.max(MIN_WIDTH, window.innerHeight - padding);
-        const aspect = BASE_WIDTH / (measuredBaseHeight || 420);
-        const fitByHeight = availH * aspect;
-        return Math.min(BASE_WIDTH, availW, fitByHeight);
-      }
-
-      const initialState = loadSavedState();
-      let baseHeight = content.offsetHeight || 420;
-      let isSizeLocked = initialState.locked;
-      let hasManualWidth = initialState.width !== null;
-      let currentWidth = hasManualWidth ? initialState.width : getViewportFitWidth(baseHeight);
-
-      function applyScale(targetWidth, shouldPersist = false) {
-        baseHeight = content.offsetHeight || baseHeight;
-        const clampedWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, targetWidth));
-        currentWidth = clampedWidth;
-
-        const scale = clampedWidth / BASE_WIDTH;
-        content.style.transform = `scale(${scale})`;
-        wrapper.style.width = `${clampedWidth}px`;
-        wrapper.style.height = `${baseHeight * scale}px`;
-
-        if (shouldPersist) {
-          persistState(currentWidth, isSizeLocked);
-        }
-      }
-
-      // 잠금 상태 UI 및 리사이즈 핸들 제어 반영 함수
-      function applyLockUI(locked, showNotification = false) {
-        isSizeLocked = locked;
-
-        if (isSizeLocked) {
-          isDragging = false;
-          activeDir = '';
-          document.body.classList.remove('is-resizing');
-
-          wrapper.classList.add('is-locked');
-          if (lockBtn) {
-            lockBtn.setAttribute('aria-pressed', 'true');
-            lockBtn.title = '크기 고정 해제';
-            lockBtn.classList.remove('bg-slate-100', 'hover:bg-slate-200/80', 'text-slate-500');
-            lockBtn.classList.add('bg-emerald-500', 'hover:bg-emerald-600', 'text-white');
-          }
-          if (iconUnlocked) iconUnlocked.classList.add('hidden');
-          if (iconLocked) iconLocked.classList.remove('hidden');
-
-          if (showNotification) {
-            showToast('크기가 고정되었습니다.', true, 4000);
-          }
-        } else {
-          wrapper.classList.remove('is-locked');
-          if (lockBtn) {
-            lockBtn.setAttribute('aria-pressed', 'false');
-            lockBtn.title = '크기 고정';
-            lockBtn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600', 'text-white');
-            lockBtn.classList.add('bg-slate-100', 'hover:bg-slate-200/80', 'text-slate-500');
-          }
-          if (iconLocked) iconLocked.classList.add('hidden');
-          if (iconUnlocked) iconUnlocked.classList.remove('hidden');
-
-          if (showNotification) {
-            showToast('잠금 해제됨 (드래그 또는 창 맞춤)', false, 2000);
-          }
-        }
-      }
-
-      let isDragging = false;
-      let activeDir = '';
-      let startX = 0;
-      let startY = 0;
-      let startWidth = currentWidth;
-      let startHeight = baseHeight;
-
-      // 초기 크기 및 잠금 상태 적용
-      applyScale(currentWidth, false);
-      applyLockUI(isSizeLocked, false);
-
-      // 잠금 상태가 아닐 때 노션 임베드 프레임 크기가 변하면 자동으로 잘림 없이 맞춤
-      window.addEventListener('resize', () => {
-        if (!isSizeLocked && !isDragging && !hasManualWidth) {
-          applyScale(getViewportFitWidth(baseHeight), false);
-        }
-      });
-
-      /**
-       * 크기 고정 상태 토글 함수
-       */
-      function toggleSizeLock() {
-        const nextLocked = !isSizeLocked;
-        if (nextLocked) {
-          hasManualWidth = true;
-        }
-        applyLockUI(nextLocked, true);
-        persistState(currentWidth, nextLocked);
-      }
-
-      if (lockBtn) {
-        lockBtn.addEventListener('click', toggleSizeLock);
-      }
-
-      // 고정 URL 복사 버튼 클릭 시 현재 크기/잠금 값이 담긴 URL 복사
-      if (copyLockUrlBtn) {
-        copyLockUrlBtn.addEventListener('click', () => {
-          const url = new URL(window.location.href);
-          url.searchParams.set('w', String(Math.round(currentWidth * 10) / 10));
-          url.searchParams.set('lock', '1');
-
-          const textarea = document.createElement('textarea');
-          textarea.value = url.toString();
-          textarea.style.position = 'fixed';
-          textarea.style.opacity = '0';
-          document.body.appendChild(textarea);
-          textarea.select();
-
+        if (!restored && window.location.hash && window.location.hash.length > 2) {
           try {
-            document.execCommand('copy');
-            showToast('고정 URL 복사 완료! 노션에 재임베드하세요.', false, 2800);
-          } catch (err) {
-            console.error('URL 복사 실패:', err);
-          } finally {
-            document.body.removeChild(textarea);
+            const raw = decodeURIComponent(atob(window.location.hash.slice(1)));
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed.g) && parsed.g.length === 5) {
+              state.games = parsed.g;
+              state.isLocked = Boolean(parsed.l);
+              state.scale = typeof parsed.s === 'number' ? parsed.s : 1;
+              restored = true;
+            }
+          } catch (e) {
+            // ignore
           }
+        }
+
+        if (!restored || !state.games.length) {
+          state.games = drawFiveGames();
+        }
+      }
+
+      // 잠금 상태 및 비율 크기 반영
+      function applySizeAndLockUI() {
+        const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, state.scale || 1));
+        state.scale = scale;
+
+        widgetContent.style.transform = `scale(${scale})`;
+        const baseHeight = widgetContent.offsetHeight || 295;
+        const cornerAllowance = state.isLocked ? 0 : 12;
+
+        widgetWrapper.style.width = Math.round(BASE_WIDTH * scale + cornerAllowance) + 'px';
+        widgetWrapper.style.height = Math.round(baseHeight * scale + cornerAllowance) + 'px';
+        widgetWrapper.style.maxWidth = '100%';
+        widgetWrapper.style.padding = '0';
+
+        if (state.isLocked) {
+          handleCorner.classList.add('hidden');
+          iconLocked.classList.remove('hidden');
+          iconUnlocked.classList.add('hidden');
+          btnLock.style.backgroundColor = '#10A37F';
+        } else {
+          handleCorner.classList.remove('hidden');
+          iconLocked.classList.add('hidden');
+          iconUnlocked.classList.remove('hidden');
+          btnLock.style.backgroundColor = '#14B88A';
+        }
+      }
+
+      // 5게임 행 렌더링
+      function renderGames(animate = false) {
+        gamesContainer.innerHTML = '';
+
+        state.games.forEach((numbers, rowIdx) => {
+          const label = LABELS[rowIdx];
+          const row = document.createElement('div');
+          row.className = 'game-row flex items-center justify-between cursor-pointer';
+          row.title = `클릭하여 ${label} 게임 번호 복사`;
+
+          // 좌측: A~E + 자동
+          const leftGroup = document.createElement('div');
+          leftGroup.className = 'flex items-center gap-1.5 shrink-0';
+
+          const letterSpan = document.createElement('span');
+          letterSpan.className = 'text-[12px] font-extrabold tabular-nums';
+          letterSpan.style.color = '#1E293B';
+          letterSpan.textContent = label;
+
+          const autoSpan = document.createElement('span');
+          autoSpan.className = 'text-[10px] font-medium';
+          autoSpan.style.color = '#94A3B8';
+          autoSpan.textContent = '자동';
+
+          leftGroup.appendChild(letterSpan);
+          leftGroup.appendChild(autoSpan);
+
+          // 우측: 6개 로또 공
+          const ballsGroup = document.createElement('div');
+          ballsGroup.className = 'flex items-center gap-1.5';
+
+          numbers.forEach((num, ballIdx) => {
+            const ball = document.createElement('span');
+            ball.className = `lotto-ball tabular-nums ${getBallClass(num)} ${animate ? 'ball-animate' : ''}`;
+            if (animate) {
+              ball.style.animationDelay = `${rowIdx * 28 + ballIdx * 22}ms`;
+            }
+            ball.textContent = String(num);
+            ballsGroup.appendChild(ball);
+          });
+
+          // 개별 행 클릭 복사 (예: A 자동 09 15 21 26 42 43)
+          row.addEventListener('click', () => {
+            const padded = numbers.map(n => String(n).padStart(2, '0')).join(' ');
+            const lineText = `${label} 자동 ${padded}`;
+            copyToClipboard(lineText, () => {
+              showToast(`${lineText} 복사됨`);
+            });
+          });
+
+          row.appendChild(leftGroup);
+          row.appendChild(ballsGroup);
+          gamesContainer.appendChild(row);
         });
       }
 
-      function getClientCoords(e) {
-        if (e.touches && e.touches.length > 0) {
-          return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        }
-        return { x: e.clientX, y: e.clientY };
-      }
+      // 우측 하단 모서리 드래그 비율 리사이즈 이벤트
+      function setupResizeHandle() {
+        let isResizing = false;
+        let startX = 0;
+        let startY = 0;
+        let startScale = 1;
 
-      function onDragStart(e) {
-        // 크기 고정 상태일 때는 드래그 차단
-        if (isSizeLocked) return;
-
-        const handle = e.target.closest('.resize-handle');
-        if (!handle) return;
-
-        e.preventDefault();
-        const coords = getClientCoords(e);
-        isDragging = true;
-        activeDir = handle.dataset.dir || '';
-        startX = coords.x;
-        startY = coords.y;
-        startWidth = currentWidth;
-        startHeight = baseHeight * (currentWidth / BASE_WIDTH);
-
-        document.body.classList.add('is-resizing');
-      }
-
-      function onDragMove(e) {
-        if (!isDragging || isSizeLocked) return;
-        const coords = getClientCoords(e);
-        const dx = coords.x - startX;
-        const dy = coords.y - startY;
-
-        let newWidth = startWidth;
-        const aspectRatio = BASE_WIDTH / baseHeight;
-
-        if (activeDir.includes('e')) {
-          newWidth = startWidth + dx * 1.5;
-        } else if (activeDir.includes('w')) {
-          newWidth = startWidth - dx * 1.5;
-        } else if (activeDir === 's') {
-          const newHeight = startHeight + dy * 1.5;
-          newWidth = newHeight * aspectRatio;
-        } else if (activeDir === 'n') {
-          const newHeight = startHeight - dy * 1.5;
-          newWidth = newHeight * aspectRatio;
+        function beginResize(e) {
+          if (state.isLocked) return;
+          e.preventDefault();
+          isResizing = true;
+          const pt = e.touches ? e.touches[0] : e;
+          startX = pt.clientX;
+          startY = pt.clientY;
+          startScale = state.scale || 1;
         }
 
-        if (activeDir.length === 2) {
-          const heightDeltaWidth = activeDir.includes('s')
-            ? (startHeight + dy * 1.5) * aspectRatio
-            : (startHeight - dy * 1.5) * aspectRatio;
-          if (Math.abs(dy) > Math.abs(dx)) {
-            newWidth = heightDeltaWidth;
-          }
+        function moveResize(e) {
+          if (!isResizing) return;
+          const pt = e.touches ? e.touches[0] : e;
+          const dx = pt.clientX - startX;
+          const dy = pt.clientY - startY;
+          const delta = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
+
+          const maxViewportScale = Math.max(MIN_SCALE, (window.innerWidth - 12) / BASE_WIDTH);
+          const nextScale = Math.max(
+            MIN_SCALE,
+            Math.min(Math.min(MAX_SCALE, maxViewportScale), +(startScale + delta / BASE_WIDTH).toFixed(3))
+          );
+
+          state.scale = nextScale;
+          applySizeAndLockUI();
         }
 
-        applyScale(newWidth, false);
+        function finishResize() {
+          if (!isResizing) return;
+          isResizing = false;
+          saveState();
+        }
+
+        handleCorner.addEventListener('mousedown', beginResize);
+        handleCorner.addEventListener('touchstart', beginResize, { passive: false });
+
+        window.addEventListener('mousemove', moveResize);
+        window.addEventListener('touchmove', moveResize, { passive: false });
+        window.addEventListener('mouseup', finishResize);
+        window.addEventListener('touchend', finishResize);
       }
 
-      function onDragEnd() {
-        if (!isDragging) return;
-        isDragging = false;
-        activeDir = '';
-        hasManualWidth = true;
-        document.body.classList.remove('is-resizing');
-        // 드래그 종료 시 변경된 크기를 즉시 저장
-        persistState(currentWidth, isSizeLocked);
-      }
+      // 버튼 이벤트 바인딩
+      btnShuffle.addEventListener('click', () => {
+        shuffleIcon.style.transform = 'rotate(360deg)';
+        setTimeout(() => { shuffleIcon.style.transform = 'rotate(0deg)'; }, 300);
 
-      wrapper.addEventListener('mousedown', onDragStart);
-      window.addEventListener('mousemove', onDragMove);
-      window.addEventListener('mouseup', onDragEnd);
+        state.games = drawFiveGames();
+        renderGames(true);
+        saveState();
+      });
 
-      wrapper.addEventListener('touchstart', onDragStart, { passive: false });
-      window.addEventListener('touchmove', onDragMove, { passive: false });
-      window.addEventListener('touchend', onDragEnd);
-    }
+      btnLock.addEventListener('click', () => {
+        state.isLocked = !state.isLocked;
+        applySizeAndLockUI();
+        saveState();
+        showToast(state.isLocked ? '사이즈 고정됨' : '사이즈 고정 해제');
+      });
 
-    // 페이지 로드 시 초기화 및 이벤트 바인딩
-    window.addEventListener('DOMContentLoaded', () => {
-      renderLottoGames();
-      initProportionalResize();
+      btnCopyAll.addEventListener('click', () => {
+        const lines = state.games.map((nums, idx) => `${LABELS[idx]}: ${nums.join(', ')}`);
+        const fullText = `[로또 6/45 자동 5게임]\n` + lines.join('\n');
 
-      const refreshBtn = document.getElementById('refresh-btn');
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', handleRefreshClick);
-      }
+        copyToClipboard(fullText, () => {
+          btnCopyAll.textContent = '복사됨!';
+          btnCopyAll.style.backgroundColor = '#DCFCE7';
+          btnCopyAll.style.color = '#15803D';
+          showToast('5게임 전체 번호가 복사되었습니다');
 
-      const copyBtn = document.getElementById('copy-btn');
-      if (copyBtn) {
-        copyBtn.addEventListener('click', handleCopyNumbers);
-      }
-    });
+          clearTimeout(copyBtnTimer);
+          copyBtnTimer = setTimeout(() => {
+            btnCopyAll.textContent = '번호 복사';
+            btnCopyAll.style.backgroundColor = '#F1F5F9';
+            btnCopyAll.style.color = '#334155';
+          }, 1500);
+        });
+      });
+
+      // 초기 실행
+      loadState();
+      renderGames(true);
+      applySizeAndLockUI();
+      setupResizeHandle();
+    })();
   </script>
 </body>
 </html>
