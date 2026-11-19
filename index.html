@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>로또 6/45 자동생성 위젯</title>
+  <!-- Tailwind CSS 로드 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Pretendard / Inter 폰트 로드 -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <style>
+    html, body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      background-color: transparent !important;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 로또 공 등장 팝 애니메이션 */
+    @keyframes ballPop {
+      0% {
+        opacity: 0;
+        transform: scale(0.45) translateY(6px);
+      }
+      70% {
+        opacity: 1;
+        transform: scale(1.08) translateY(-1px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .ball-animate {
+      animation: ballPop 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* 원형 버튼 클릭 시 아이콘 회전 애니메이션 */
+    @keyframes spinOnce {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spin-icon {
+      animation: spinOnce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* 투명 리사이즈 핸들 공통 스타일 (테두리/배경 완전 투명) */
+    .resize-handle {
+      position: absolute;
+      background: transparent;
+      z-index: 30;
+      touch-action: none;
+    }
+    .resize-n  { top: -6px; left: 10px; right: 10px; height: 12px; cursor: ns-resize; }
+    .resize-s  { bottom: -6px; left: 10px; right: 10px; height: 12px; cursor: ns-resize; }
+    .resize-e  { right: -6px; top: 10px; bottom: 10px; width: 12px; cursor: ew-resize; }
+    .resize-w  { left: -6px; top: 10px; bottom: 10px; width: 12px; cursor: ew-resize; }
+    .resize-nw { top: -6px; left: -6px; width: 16px; height: 16px; cursor: nwse-resize; }
+    .resize-ne { top: -6px; right: -6px; width: 16px; height: 16px; cursor: nesw-resize; }
+    .resize-sw { bottom: -6px; left: -6px; width: 16px; height: 16px; cursor: nesw-resize; }
+    .resize-se { bottom: -6px; right: -6px; width: 16px; height: 16px; cursor: nwse-resize; }
+
+    body.is-resizing {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 bg-transparent overflow-hidden">
+
+  <!-- 외곽 리사이즈 래퍼: 투명 테두리 드래그 영역을 감싸며 실제 시각적 크기를 유지 -->
+  <div id="widget-wrapper" class="relative inline-block border-0 shadow-none bg-transparent">
+    <!-- 8방향 투명 드래그 핸들 (상/하/좌/우 및 4개 모서리) -->
+    <div class="resize-handle resize-n" data-dir="n" aria-hidden="true"></div>
+    <div class="resize-handle resize-s" data-dir="s" aria-hidden="true"></div>
+    <div class="resize-handle resize-e" data-dir="e" aria-hidden="true"></div>
+    <div class="resize-handle resize-w" data-dir="w" aria-hidden="true"></div>
+    <div class="resize-handle resize-nw" data-dir="nw" aria-hidden="true"></div>
+    <div class="resize-handle resize-ne" data-dir="ne" aria-hidden="true"></div>
+    <div class="resize-handle resize-sw" data-dir="sw" aria-hidden="true"></div>
+    <div class="resize-handle resize-se" data-dir="se" aria-hidden="true"></div>
+
+    <!-- 위젯 메인 컨테이너: 기준 너비(360px)를 유지한 채 비율 스케일링되어 인터페이스 깨짐 원천 차단 -->
+    <main id="widget-content" style="width: 360px; transform-origin: top left;" class="bg-white rounded-3xl p-6 border-0 shadow-none">
+      
+      <!-- 상단 헤더 영역 -->
+      <header class="flex items-center justify-between mb-5">
+        <div class="whitespace-nowrap">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Lotto 6/45</span>
+          </div>
+          <h1 class="text-xl font-bold text-slate-900 tracking-tight mt-0.5">
+            로또 번호 자동생성
+          </h1>
+        </div>
+
+        <!-- 우측: 금액 뱃지 + 원형 랜덤 재생성 버튼 -->
+        <div class="flex items-center gap-2.5 shrink-0">
+          <div class="text-right mr-1 whitespace-nowrap">
+            <span class="block text-[11px] font-medium text-slate-400">자동 5게임</span>
+            <span class="block text-sm font-bold text-slate-700">5,000원</span>
+          </div>
+
+          <!-- 원형 랜덤 재생성 버튼 (테두리 없음, 그림자 없음, 플랫한 인터랙션) -->
+          <button
+            id="refresh-btn"
+            type="button"
+            aria-label="새로운 번호 5게임 생성"
+            title="새 번호 생성"
+            class="w-11 h-11 rounded-full bg-slate-900 hover:bg-slate-800 active:scale-90 text-white flex items-center justify-center transition-all duration-150 border-0 shadow-none focus:outline-none cursor-pointer shrink-0"
+          >
+            <svg
+              id="refresh-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 16h5v5" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- 5게임(A~E) 번호 리스트 컨테이너 -->
+      <section id="games-container" aria-label="생성된 로또 번호 목록" class="space-y-2.5">
+        <!-- JavaScript로 5게임 행이 동적으로 렌더링됩니다 -->
+      </section>
+
+      <!-- 하단 안내 및 전체 복사 기능 (테두리/그림자 없는 플랫 버튼) -->
+      <footer class="mt-5 pt-1 flex items-center justify-between whitespace-nowrap">
+        <p class="text-xs text-slate-400 font-medium">
+          1~45 중복 없는 6개 번호 · 오름차순
+        </p>
+
+        <button
+          id="copy-btn"
+          type="button"
+          class="text-xs font-semibold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 active:scale-95 px-3 py-1.5 rounded-full transition-all border-0 shadow-none cursor-pointer"
+        >
+          번호 복사
+        </button>
+      </footer>
+
+      <!-- 알림 메시지 토스트 (alert 대신 사용) -->
+      <div
+        id="toast-msg"
+        role="status"
+        aria-live="polite"
+        class="mt-2.5 text-center text-xs font-semibold text-emerald-600 opacity-0 transition-opacity duration-200 h-4 whitespace-nowrap"
+      >
+        5게임 번호가 클립보드에 복사되었습니다.
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    /**
+     * 한국 로또(6/45) 공식 번호대별 색상 반환 함수
+     * 1~10: 노랑, 11~20: 파랑, 21~30: 빨강, 31~40: 회색, 41~45: 초록
+     */
+    function getLottoBallStyle(number) {
+      if (number <= 10) {
+        return {
+          bg: 'bg-[#FBC400]',
+          text: 'text-white'
+        };
+      } else if (number <= 20) {
+        return {
+          bg: 'bg-[#69C8F2]',
+          text: 'text-white'
+        };
+      } else if (number <= 30) {
+        return {
+          bg: 'bg-[#FF7272]',
+          text: 'text-white'
+        };
+      } else if (number <= 40) {
+        return {
+          bg: 'bg-[#AAAAAA]',
+          text: 'text-white'
+        };
+      } else {
+        return {
+          bg: 'bg-[#B0D840]',
+          text: 'text-white'
+        };
+      }
+    }
+
+    /**
+     * 1부터 45까지 중복 없이 6개의 숫자를 추출하여 오름차순 정렬 반환
+     */
+    function generateSingleGame() {
+      const pool = Array.from({ length: 45 }, (_, idx) => idx + 1);
+
+      // Fisher-Yates 셔플 알고리즘으로 완벽한 비복원 추출 보장
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+
+      // 앞의 6개를 선택하고 오름차순(a - b) 정렬
+      const selected = pool.slice(0, 6).sort((a, b) => a - b);
+
+      // 안전 검증: 중복 제거 후 6자리인지 확인
+      const uniqueCheck = new Set(selected);
+      if (uniqueCheck.size !== 6) {
+        return generateSingleGame();
+      }
+
+      return selected;
+    }
+
+    // 현재 생성된 5게임 데이터를 저장하는 상태 변수
+    let currentGames = [];
+    const GAME_LABELS = ['A', 'B', 'C', 'D', 'E'];
+
+    /**
+     * 5게임(A~E)을 생성하고 화면에 렌더링하는 함수
+     */
+    function renderLottoGames() {
+      try {
+        const container = document.getElementById('games-container');
+        if (!container) return;
+
+        currentGames = GAME_LABELS.map((label) => ({
+          label,
+          numbers: generateSingleGame()
+        }));
+
+        container.innerHTML = '';
+
+        currentGames.forEach((game, rowIndex) => {
+          // 각 게임 행 (플랫한 연회색 배경, 테두리 없음, 그림자 없음)
+          const rowEl = document.createElement('div');
+          rowEl.className = 'flex items-center justify-between bg-slate-50 rounded-2xl px-3.5 py-2.5 border-0 shadow-none';
+
+          // 좌측 게임 라벨 (A ~ E) 및 '자동' 표기
+          const labelWrapper = document.createElement('div');
+          labelWrapper.className = 'flex items-center gap-2 min-w-[50px] whitespace-nowrap';
+
+          const labelBadge = document.createElement('span');
+          labelBadge.className = 'text-sm font-extrabold text-slate-800 w-4 text-center';
+          labelBadge.textContent = game.label;
+
+          const autoTag = document.createElement('span');
+          autoTag.className = 'text-[11px] font-medium text-slate-400';
+          autoTag.textContent = '자동';
+
+          labelWrapper.appendChild(labelBadge);
+          labelWrapper.appendChild(autoTag);
+
+          // 우측 6개 로또 공 컨테이너
+          const ballsWrapper = document.createElement('div');
+          ballsWrapper.className = 'flex items-center gap-1.5 shrink-0';
+
+          game.numbers.forEach((num, ballIndex) => {
+            const style = getLottoBallStyle(num);
+            const ballEl = document.createElement('span');
+
+            // 순차적인 팝 애니메이션 딜레이 적용
+            const delayMs = (rowIndex * 45) + (ballIndex * 25);
+            ballEl.style.animationDelay = `${delayMs}ms`;
+            ballEl.style.opacity = '0';
+
+            ballEl.className = [
+              'w-8 h-8 rounded-full flex items-center justify-center',
+              'text-xs font-bold tracking-tight select-none',
+              'border-0 shadow-none ball-animate',
+              style.bg,
+              style.text
+            ].join(' ');
+
+            ballEl.textContent = num;
+            ballsWrapper.appendChild(ballEl);
+          });
+
+          rowEl.appendChild(labelWrapper);
+          rowEl.appendChild(ballsWrapper);
+          container.appendChild(rowEl);
+        });
+      } catch (error) {
+        console.error('로또 번호 생성 중 오류가 발생했습니다:', error);
+      }
+    }
+
+    /**
+     * 원형 랜덤 버튼 클릭 핸들러 (회전 애니메이션 + 번호 재생성)
+     */
+    function handleRefreshClick() {
+      const icon = document.getElementById('refresh-icon');
+      if (icon) {
+        icon.classList.remove('spin-icon');
+        // 리플로우 트리거로 연속 클릭 시에도 회전 애니메이션 재실행
+        void icon.offsetWidth;
+        icon.classList.add('spin-icon');
+      }
+      renderLottoGames();
+    }
+
+    /**
+     * 생성된 5게임 번호 텍스트 클립보드 복사 기능
+     */
+    function handleCopyNumbers() {
+      if (!currentGames.length) return;
+
+      const formattedText = currentGames
+        .map((game) => `${game.label} 자동: ${game.numbers.map((n) => String(n).padStart(2, '0')).join(', ')}`)
+        .join('\n');
+
+      const textarea = document.createElement('textarea');
+      textarea.value = formattedText;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      try {
+        document.execCommand('copy');
+        const toast = document.getElementById('toast-msg');
+        if (toast) {
+          toast.classList.remove('opacity-0');
+          toast.classList.add('opacity-100');
+          setTimeout(() => {
+            toast.classList.remove('opacity-100');
+            toast.classList.add('opacity-0');
+          }, 1800);
+        }
+      } catch (err) {
+        console.error('클립보드 복사 실패:', err);
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
+    /**
+     * 투명 테두리 드래그 앤 드롭 비례 크기 조절 컨트롤러
+     * 기준 너비(360px)와 실제 측정된 기준 높이 비율을 고정하여 어떤 크기로 늘리거나 줄여도 UI 레이아웃이 깨지지 않음
+     */
+    function initProportionalResize() {
+      const wrapper = document.getElementById('widget-wrapper');
+      const content = document.getElementById('widget-content');
+      if (!wrapper || !content) return;
+
+      const BASE_WIDTH = 360;
+      const MIN_WIDTH = 220;
+      const MAX_WIDTH = 820;
+
+      // 렌더링 직후 기준 높이 측정
+      let baseHeight = content.offsetHeight || 420;
+      let currentWidth = BASE_WIDTH;
+
+      function applyScale(targetWidth) {
+        baseHeight = content.offsetHeight || baseHeight;
+        const clampedWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, targetWidth));
+        currentWidth = clampedWidth;
+
+        const scale = clampedWidth / BASE_WIDTH;
+        content.style.transform = `scale(${scale})`;
+        wrapper.style.width = `${clampedWidth}px`;
+        wrapper.style.height = `${baseHeight * scale}px`;
+      }
+
+      // 초기 스케일 적용
+      applyScale(BASE_WIDTH);
+
+      let isDragging = false;
+      let activeDir = '';
+      let startX = 0;
+      let startY = 0;
+      let startWidth = BASE_WIDTH;
+      let startHeight = baseHeight;
+
+      function getClientCoords(e) {
+        if (e.touches && e.touches.length > 0) {
+          return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+        return { x: e.clientX, y: e.clientY };
+      }
+
+      function onDragStart(e) {
+        const handle = e.target.closest('.resize-handle');
+        if (!handle) return;
+
+        e.preventDefault();
+        const coords = getClientCoords(e);
+        isDragging = true;
+        activeDir = handle.dataset.dir || '';
+        startX = coords.x;
+        startY = coords.y;
+        startWidth = currentWidth;
+        startHeight = baseHeight * (currentWidth / BASE_WIDTH);
+
+        document.body.classList.add('is-resizing');
+      }
+
+      function onDragMove(e) {
+        if (!isDragging) return;
+        const coords = getClientCoords(e);
+        const dx = coords.x - startX;
+        const dy = coords.y - startY;
+
+        let newWidth = startWidth;
+        const aspectRatio = BASE_WIDTH / baseHeight;
+
+        // 좌우/대각선 드래그 시 가로 변화량 반영 (중앙 정렬 기준 대칭 확장 고려 x2 또는 1:1 반응)
+        if (activeDir.includes('e')) {
+          newWidth = startWidth + dx * 1.5;
+        } else if (activeDir.includes('w')) {
+          newWidth = startWidth - dx * 1.5;
+        } else if (activeDir === 's') {
+          // 상하 변만 드래그한 경우 높이 변화량을 종횡비에 맞춰 너비로 환산
+          const newHeight = startHeight + dy * 1.5;
+          newWidth = newHeight * aspectRatio;
+        } else if (activeDir === 'n') {
+          const newHeight = startHeight - dy * 1.5;
+          newWidth = newHeight * aspectRatio;
+        }
+
+        // 대각선 방향에서 세로 이동이 더 큰 경우 자연스럽게 보정
+        if (activeDir.length === 2) {
+          const heightDeltaWidth = activeDir.includes('s')
+            ? (startHeight + dy * 1.5) * aspectRatio
+            : (startHeight - dy * 1.5) * aspectRatio;
+          if (Math.abs(dy) > Math.abs(dx)) {
+            newWidth = heightDeltaWidth;
+          }
+        }
+
+        applyScale(newWidth);
+      }
+
+      function onDragEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        activeDir = '';
+        document.body.classList.remove('is-resizing');
+      }
+
+      // 마우스 및 터치 이벤트 등록
+      wrapper.addEventListener('mousedown', onDragStart);
+      window.addEventListener('mousemove', onDragMove);
+      window.addEventListener('mouseup', onDragEnd);
+
+      wrapper.addEventListener('touchstart', onDragStart, { passive: false });
+      window.addEventListener('touchmove', onDragMove, { passive: false });
+      window.addEventListener('touchend', onDragEnd);
+    }
+
+    // 페이지 로드 시 초기화 및 이벤트 바인딩
+    window.addEventListener('DOMContentLoaded', () => {
+      renderLottoGames();
+      initProportionalResize();
+
+      const refreshBtn = document.getElementById('refresh-btn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', handleRefreshClick);
+      }
+
+      const copyBtn = document.getElementById('copy-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', handleCopyNumbers);
+      }
+    });
+  </script>
+</body>
+</html>
