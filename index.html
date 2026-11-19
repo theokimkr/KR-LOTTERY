@@ -67,6 +67,12 @@
     .resize-sw { bottom: -6px; left: -6px; width: 16px; height: 16px; cursor: nesw-resize; }
     .resize-se { bottom: -6px; right: -6px; width: 16px; height: 16px; cursor: nwse-resize; }
 
+    /* 크기 고정 상태일 때 리사이즈 핸들 비활성화 및 커서 복원 */
+    #widget-wrapper.is-locked .resize-handle {
+      pointer-events: none;
+      cursor: default !important;
+    }
+
     body.is-resizing {
       user-select: none;
       -webkit-user-select: none;
@@ -102,14 +108,55 @@
           </h1>
         </div>
 
-        <!-- 우측: 금액 뱃지 + 원형 랜덤 재생성 버튼 -->
-        <div class="flex items-center gap-2.5 shrink-0">
-          <div class="text-right mr-1 whitespace-nowrap">
+        <!-- 우측: 금액 뱃지 + 크기 고정 토글 버튼 + 원형 랜덤 재생성 버튼 -->
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="text-right mr-0.5 whitespace-nowrap">
             <span class="block text-[11px] font-medium text-slate-400">자동 5게임</span>
             <span class="block text-sm font-bold text-slate-700">5,000원</span>
           </div>
 
-          <!-- 원형 랜덤 재생성 버튼 (테두리 없음, 그림자 없음, 플랫한 인터랙션) -->
+          <!-- 크기 고정 토글 버튼 -->
+          <button
+            id="lock-size-btn"
+            type="button"
+            aria-label="위젯 크기 고정 토글"
+            aria-pressed="false"
+            title="크기 고정"
+            class="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200/80 active:scale-90 text-slate-500 flex items-center justify-center transition-all duration-150 border-0 shadow-none focus:outline-none cursor-pointer shrink-0"
+          >
+            <!-- 잠금 해제 아이콘 (기본) -->
+            <svg
+              id="icon-unlocked"
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+            </svg>
+            <!-- 잠금 아이콘 (크기 고정 활성화 시 표시) -->
+            <svg
+              id="icon-locked"
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-4 h-4 hidden"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </button>
+
+          <!-- 원형 랜덤 재생성 버튼 -->
           <button
             id="refresh-btn"
             type="button"
@@ -142,7 +189,7 @@
         <!-- JavaScript로 5게임 행이 동적으로 렌더링됩니다 -->
       </section>
 
-      <!-- 하단 안내 및 전체 복사 기능 (테두리/그림자 없는 플랫 버튼) -->
+      <!-- 하단 안내 및 전체 복사 기능 -->
       <footer class="mt-5 pt-1 flex items-center justify-between whitespace-nowrap">
         <p class="text-xs text-slate-400 font-medium">
           1~45 중복 없는 6개 번호 · 오름차순
@@ -171,36 +218,42 @@
   </div>
 
   <script>
+    // 토스트 타이머 참조 변수
+    let toastTimer = null;
+
+    /**
+     * 하단 토스트 메시지 출력 헬퍼
+     */
+    function showToast(message) {
+      const toast = document.getElementById('toast-msg');
+      if (!toast) return;
+
+      toast.textContent = message;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 1800);
+    }
+
     /**
      * 한국 로또(6/45) 공식 번호대별 색상 반환 함수
      * 1~10: 노랑, 11~20: 파랑, 21~30: 빨강, 31~40: 회색, 41~45: 초록
      */
     function getLottoBallStyle(number) {
       if (number <= 10) {
-        return {
-          bg: 'bg-[#FBC400]',
-          text: 'text-white'
-        };
+        return { bg: 'bg-[#FBC400]', text: 'text-white' };
       } else if (number <= 20) {
-        return {
-          bg: 'bg-[#69C8F2]',
-          text: 'text-white'
-        };
+        return { bg: 'bg-[#69C8F2]', text: 'text-white' };
       } else if (number <= 30) {
-        return {
-          bg: 'bg-[#FF7272]',
-          text: 'text-white'
-        };
+        return { bg: 'bg-[#FF7272]', text: 'text-white' };
       } else if (number <= 40) {
-        return {
-          bg: 'bg-[#AAAAAA]',
-          text: 'text-white'
-        };
+        return { bg: 'bg-[#AAAAAA]', text: 'text-white' };
       } else {
-        return {
-          bg: 'bg-[#B0D840]',
-          text: 'text-white'
-        };
+        return { bg: 'bg-[#B0D840]', text: 'text-white' };
       }
     }
 
@@ -210,16 +263,14 @@
     function generateSingleGame() {
       const pool = Array.from({ length: 45 }, (_, idx) => idx + 1);
 
-      // Fisher-Yates 셔플 알고리즘으로 완벽한 비복원 추출 보장
+      // Fisher-Yates 셔플 알고리즘
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
       }
 
-      // 앞의 6개를 선택하고 오름차순(a - b) 정렬
       const selected = pool.slice(0, 6).sort((a, b) => a - b);
 
-      // 안전 검증: 중복 제거 후 6자리인지 확인
       const uniqueCheck = new Set(selected);
       if (uniqueCheck.size !== 6) {
         return generateSingleGame();
@@ -248,11 +299,9 @@
         container.innerHTML = '';
 
         currentGames.forEach((game, rowIndex) => {
-          // 각 게임 행 (플랫한 연회색 배경, 테두리 없음, 그림자 없음)
           const rowEl = document.createElement('div');
           rowEl.className = 'flex items-center justify-between bg-slate-50 rounded-2xl px-3.5 py-2.5 border-0 shadow-none';
 
-          // 좌측 게임 라벨 (A ~ E) 및 '자동' 표기
           const labelWrapper = document.createElement('div');
           labelWrapper.className = 'flex items-center gap-2 min-w-[50px] whitespace-nowrap';
 
@@ -267,7 +316,6 @@
           labelWrapper.appendChild(labelBadge);
           labelWrapper.appendChild(autoTag);
 
-          // 우측 6개 로또 공 컨테이너
           const ballsWrapper = document.createElement('div');
           ballsWrapper.className = 'flex items-center gap-1.5 shrink-0';
 
@@ -275,7 +323,6 @@
             const style = getLottoBallStyle(num);
             const ballEl = document.createElement('span');
 
-            // 순차적인 팝 애니메이션 딜레이 적용
             const delayMs = (rowIndex * 45) + (ballIndex * 25);
             ballEl.style.animationDelay = `${delayMs}ms`;
             ballEl.style.opacity = '0';
@@ -308,7 +355,6 @@
       const icon = document.getElementById('refresh-icon');
       if (icon) {
         icon.classList.remove('spin-icon');
-        // 리플로우 트리거로 연속 클릭 시에도 회전 애니메이션 재실행
         void icon.offsetWidth;
         icon.classList.add('spin-icon');
       }
@@ -334,15 +380,7 @@
 
       try {
         document.execCommand('copy');
-        const toast = document.getElementById('toast-msg');
-        if (toast) {
-          toast.classList.remove('opacity-0');
-          toast.classList.add('opacity-100');
-          setTimeout(() => {
-            toast.classList.remove('opacity-100');
-            toast.classList.add('opacity-0');
-          }, 1800);
-        }
+        showToast('5게임 번호가 클립보드에 복사되었습니다.');
       } catch (err) {
         console.error('클립보드 복사 실패:', err);
       } finally {
@@ -351,21 +389,24 @@
     }
 
     /**
-     * 투명 테두리 드래그 앤 드롭 비례 크기 조절 컨트롤러
-     * 기준 너비(360px)와 실제 측정된 기준 높이 비율을 고정하여 어떤 크기로 늘리거나 줄여도 UI 레이아웃이 깨지지 않음
+     * 투명 테두리 드래그 앤 드롭 비례 크기 조절 및 크기 고정 컨트롤러
      */
     function initProportionalResize() {
       const wrapper = document.getElementById('widget-wrapper');
       const content = document.getElementById('widget-content');
+      const lockBtn = document.getElementById('lock-size-btn');
+      const iconUnlocked = document.getElementById('icon-unlocked');
+      const iconLocked = document.getElementById('icon-locked');
+
       if (!wrapper || !content) return;
 
       const BASE_WIDTH = 360;
       const MIN_WIDTH = 220;
       const MAX_WIDTH = 820;
 
-      // 렌더링 직후 기준 높이 측정
       let baseHeight = content.offsetHeight || 420;
       let currentWidth = BASE_WIDTH;
+      let isSizeLocked = false;
 
       function applyScale(targetWidth) {
         baseHeight = content.offsetHeight || baseHeight;
@@ -388,6 +429,48 @@
       let startWidth = BASE_WIDTH;
       let startHeight = baseHeight;
 
+      /**
+       * 크기 고정 상태 토글 함수
+       */
+      function toggleSizeLock() {
+        isSizeLocked = !isSizeLocked;
+
+        if (isSizeLocked) {
+          // 드래그 중이었다면 즉시 중단
+          isDragging = false;
+          activeDir = '';
+          document.body.classList.remove('is-resizing');
+
+          wrapper.classList.add('is-locked');
+          if (lockBtn) {
+            lockBtn.setAttribute('aria-pressed', 'true');
+            lockBtn.title = '크기 고정 해제';
+            lockBtn.classList.remove('bg-slate-100', 'hover:bg-slate-200/80', 'text-slate-500');
+            lockBtn.classList.add('bg-emerald-500', 'hover:bg-emerald-600', 'text-white');
+          }
+          if (iconUnlocked) iconUnlocked.classList.add('hidden');
+          if (iconLocked) iconLocked.classList.remove('hidden');
+
+          showToast('위젯 크기가 고정되었습니다.');
+        } else {
+          wrapper.classList.remove('is-locked');
+          if (lockBtn) {
+            lockBtn.setAttribute('aria-pressed', 'false');
+            lockBtn.title = '크기 고정';
+            lockBtn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600', 'text-white');
+            lockBtn.classList.add('bg-slate-100', 'hover:bg-slate-200/80', 'text-slate-500');
+          }
+          if (iconLocked) iconLocked.classList.add('hidden');
+          if (iconUnlocked) iconUnlocked.classList.remove('hidden');
+
+          showToast('크기 고정이 해제되었습니다. 테두리를 드래그해 조절하세요.');
+        }
+      }
+
+      if (lockBtn) {
+        lockBtn.addEventListener('click', toggleSizeLock);
+      }
+
       function getClientCoords(e) {
         if (e.touches && e.touches.length > 0) {
           return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -396,6 +479,9 @@
       }
 
       function onDragStart(e) {
+        // 크기 고정 상태일 때는 드래그 차단
+        if (isSizeLocked) return;
+
         const handle = e.target.closest('.resize-handle');
         if (!handle) return;
 
@@ -412,7 +498,7 @@
       }
 
       function onDragMove(e) {
-        if (!isDragging) return;
+        if (!isDragging || isSizeLocked) return;
         const coords = getClientCoords(e);
         const dx = coords.x - startX;
         const dy = coords.y - startY;
@@ -420,13 +506,11 @@
         let newWidth = startWidth;
         const aspectRatio = BASE_WIDTH / baseHeight;
 
-        // 좌우/대각선 드래그 시 가로 변화량 반영 (중앙 정렬 기준 대칭 확장 고려 x2 또는 1:1 반응)
         if (activeDir.includes('e')) {
           newWidth = startWidth + dx * 1.5;
         } else if (activeDir.includes('w')) {
           newWidth = startWidth - dx * 1.5;
         } else if (activeDir === 's') {
-          // 상하 변만 드래그한 경우 높이 변화량을 종횡비에 맞춰 너비로 환산
           const newHeight = startHeight + dy * 1.5;
           newWidth = newHeight * aspectRatio;
         } else if (activeDir === 'n') {
@@ -434,7 +518,6 @@
           newWidth = newHeight * aspectRatio;
         }
 
-        // 대각선 방향에서 세로 이동이 더 큰 경우 자연스럽게 보정
         if (activeDir.length === 2) {
           const heightDeltaWidth = activeDir.includes('s')
             ? (startHeight + dy * 1.5) * aspectRatio
@@ -454,7 +537,6 @@
         document.body.classList.remove('is-resizing');
       }
 
-      // 마우스 및 터치 이벤트 등록
       wrapper.addEventListener('mousedown', onDragStart);
       window.addEventListener('mousemove', onDragMove);
       window.addEventListener('mouseup', onDragEnd);
